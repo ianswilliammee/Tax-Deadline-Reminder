@@ -1,0 +1,935 @@
+<!-- Apps Script HTML file. Name it exactly "Dashboard" in the editor. -->
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f7f8;
+    --sunken: #eeeef1;
+    --border: #e3e3e6;
+    --text: #1a1a1c;
+    --muted: #6b6b73;
+    --accent: #2b5fd9;
+    --accent-soft: #eaf0fe;
+    --fed: #2b5fd9;
+    --fed-soft: #eaf0fe;
+    --tex: #b4541a;
+    --tex-soft: #fdeee2;
+    --ok: #1a7f4b;
+    --err: #c0392b;
+    --warn: #8a6d0f;
+    --warn-bg: #fdf6e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --panel: #202126;
+      --sunken: #191a1e;
+      --border: #34363c;
+      --text: #ececee;
+      --muted: #9b9ba4;
+      --accent: #7fa3ff;
+      --accent-soft: #1e2740;
+      --fed: #7fa3ff;
+      --fed-soft: #1e2740;
+      --tex: #e0965c;
+      --tex-soft: #33241a;
+      --ok: #5ec98d;
+      --err: #f08b7e;
+      --warn: #e0c268;
+      --warn-bg: #2c2718;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 16px 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  h1 { font-size: 23px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+
+  /* Numbered sections give the page a top-to-bottom reading order:
+     what you file -> when you hear about it -> what that produces. */
+  .step { margin-bottom: 32px; }
+  .step-head { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+  .step-num {
+    flex: none; width: 21px; height: 21px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 700; line-height: 21px; text-align: center;
+  }
+  .step-title { font-size: 16px; font-weight: 650; margin: 0; }
+  .step-note { color: var(--muted); font-size: 13px; margin: 0 0 12px 30px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+  .subcard {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin-bottom: 10px;
+  }
+
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  .field { flex: 1 1 220px; min-width: 0; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  input[type=text], input[type=email], select {
+    width: 100%; padding: 8px 10px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .subcard input[type=text], .subcard select { background: var(--panel); }
+  input:focus, select:focus, .chip:focus-within {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  .hint.strong { color: var(--warn); }
+
+  .entity-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 14px;
+  }
+  .toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 13px;
+            color: var(--muted); cursor: pointer; margin: 0; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .06em;
+         text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+  .tag.fed { color: var(--fed); background: var(--fed-soft); }
+  .tag.tex { color: var(--tex); background: var(--tex-soft); }
+  fieldset { border: 0; margin: 0; padding: 0; }
+  fieldset[disabled] { opacity: .4; }
+
+  .linkish {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    color: var(--accent); font: 600 13px inherit;
+  }
+  .linkish.danger { color: var(--muted); }
+  .linkish.danger:hover { color: var(--err); }
+
+  /* Lead times: discrete toggles rather than a free-text list, so there is
+     nothing to mistype and the options are self-documenting. */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; margin: 0;
+    padding: 7px 12px; border-radius: 999px; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border);
+    font-size: 13px; color: var(--text); user-select: none;
+  }
+  .chip input { margin: 0; }
+  .chip.on { background: var(--accent-soft); border-color: var(--accent);
+             color: var(--accent); font-weight: 600; }
+
+  /* Calendar */
+  .months {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(226px, 1fr));
+  }
+  .month { background: var(--sunken); border-radius: 8px; padding: 12px 10px; }
+  .month-name { font-size: 13px; font-weight: 650; margin-bottom: 8px;
+                text-align: center; }
+  .dow, .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .dow span { text-align: center; font-size: 10px; color: var(--muted);
+              padding-bottom: 4px; }
+  .grid { gap: 1px 0; }
+  .cell { position: relative; height: 30px; display: flex; flex-direction: column;
+          align-items: center; justify-content: center; }
+  .num { font-size: 12px; line-height: 19px; width: 19px; height: 19px;
+         text-align: center; border-radius: 50%;
+         font-variant-numeric: tabular-nums; }
+  .cell.today .num { box-shadow: inset 0 0 0 1.5px var(--muted); }
+  .cell.deadline .num { color: #fff; font-weight: 700; }
+  .cell.deadline.fed .num { background: var(--fed); }
+  .cell.deadline.tex .num { background: var(--tex); }
+  /* Square marks annual returns and extensions; round marks the recurring
+     instalments, so the two kinds are distinguishable at a glance. */
+  .cell.deadline.annual .num { border-radius: 5px; }
+  .cell.deadline.today .num { box-shadow: inset 0 0 0 1.5px var(--bg); }
+  .pips { display: flex; gap: 2px; height: 4px; margin-top: 1px; }
+  .pip { width: 4px; height: 4px; border-radius: 50%; }
+  .pip.fed { background: var(--fed); }
+  .pip.tex { background: var(--tex); }
+  .cell.has-mark { cursor: help; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px;
+            font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .key { width: 15px; height: 15px; border-radius: 50%; flex: none; }
+  .key.fed { background: var(--fed); }
+  .key.tex { background: var(--tex); }
+  .key.square { border-radius: 4px; background: var(--muted); }
+  .key.pip { width: 5px; height: 5px; background: var(--muted); }
+
+  .cal-head { display: flex; justify-content: space-between; align-items: baseline;
+              gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tally { font-size: 13px; color: var(--muted); margin: 0; }
+  .tally b { color: var(--text); font-weight: 650; }
+  .range { display: flex; align-items: center; gap: 8px; }
+  .range label { margin: 0; white-space: nowrap; }
+  .range select { width: auto; padding: 5px 8px; font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase;
+       letter-spacing: .05em; color: var(--muted); font-weight: 600;
+       padding: 0 8px 8px 0; }
+  td { padding: 8px 8px 8px 0; border-top: 1px solid var(--border);
+       vertical-align: top; }
+  td.due { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.days { white-space: nowrap; text-align: right; color: var(--muted);
+            font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+         margin-right: 7px; vertical-align: 0; }
+  .dot.fed { background: var(--fed); }
+  .dot.tex { background: var(--tex); }
+  .dot.annual { border-radius: 2px; }
+  .period { color: var(--muted); font-size: 13px; }
+  .moved { color: var(--warn); font-size: 12px; }
+  .scroller { overflow-x: auto; }
+
+  .bar {
+    position: sticky; bottom: 0; margin-top: 24px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 14px 0 18px; background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+  button.act {
+    font: 600 14px inherit; padding: 9px 17px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    cursor: pointer;
+  }
+  button.act.primary { background: var(--accent); border-color: var(--accent);
+                       color: #fff; }
+  button.act:disabled { opacity: .5; cursor: default; }
+  .status { font-size: 13px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+
+  .banner { background: var(--warn-bg); color: var(--warn); font-size: 13px;
+            border-radius: 6px; padding: 10px 12px; margin-bottom: 20px; }
+  .loading { color: var(--muted); padding: 24px 0; }
+</style>
+
+<div class="wrap">
+  <h1>Tax deadline reminders</h1>
+  <p class="sub" id="sub">Loading…</p>
+
+  <div id="app" style="display:none">
+    <div id="trigger-warning" class="banner" style="display:none">
+      The daily check is not installed yet. Saving will install it.
+    </div>
+
+    <!-- 1 --------------------------------------------------------------- -->
+    <section class="step">
+      <div class="step-head">
+        <span class="step-num">1</span>
+        <h2 class="step-title">Recurring through the year</h2>
+      </div>
+      <p class="step-note">Estimated tax instalments and sales tax returns.</p>
+
+      <div class="card">
+        <div class="entity-head">
+          <span class="tag fed">Federal estimated tax</span>
+          <label class="toggle"><input type="checkbox" id="fed-enabled"> Remind me</label>
+        </div>
+        <!-- Toggle sits outside the fieldset: a disabled fieldset also
+             disables its descendants, which would trap the checkbox off. -->
+        <fieldset id="fed-set">
+          <div class="row">
+            <div class="field">
+              <label for="fed-entity">Entity</label>
+              <input type="text" id="fed-entity">
+            </div>
+            <div class="field">
+              <label for="fed-schedule">Filing basis</label>
+              <select id="fed-schedule"></select>
+            </div>
+          </div>
+          <p class="hint">A C corp pays its last instalment in December rather
+            than January, which changes the shape of the year.</p>
+        </fieldset>
+      </div>
+
+      <div class="card">
+        <div class="entity-head">
+          <span class="tag tex">Texas sales &amp; use tax</span>
+          <label class="toggle"><input type="checkbox" id="tex-enabled"> Remind me</label>
+        </div>
+        <fieldset id="tex-set">
+          <div class="row">
+            <div class="field">
+              <label for="tex-entity">Entity</label>
+              <input type="text" id="tex-entity">
+            </div>
+            <div class="field">
+              <label for="tex-frequency">Filing frequency</label>
+              <select id="tex-frequency"></select>
+            </div>
+          </div>
+          <p class="hint">The Comptroller assigns this by tax volume — confirm it
+            in Webfile rather than guessing.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <!-- 2 --------------------------------------------------------------- -->
+    <section class="step">
+      <div class="step-head">
+        <span class="step-num">2</span>
+        <h2 class="step-title">Annual returns and extensions</h2>
+      </div>
+      <p class="step-note">Each return gets two reminders: the original date,
+        which is also the last day to request an extension, and the extended
+        date if you use one.</p>
+
+      <div class="card">
+        <div class="entity-head">
+          <span class="tag fed">Personal return — Form 1040</span>
+          <label class="toggle"><input type="checkbox" id="per-enabled"> Remind me</label>
+        </div>
+        <fieldset id="per-set">
+          <div class="row">
+            <div class="field">
+              <label for="per-label">Label</label>
+              <input type="text" id="per-label">
+            </div>
+          </div>
+          <label class="toggle" style="margin-top:12px">
+            <input type="checkbox" id="per-ext"> Also remind me about the
+            extended deadline (Oct 15)
+          </label>
+          <p class="hint">A sole proprietor or single-member LLC files Schedule C
+            with this return, so it needs no separate entry below.</p>
+        </fieldset>
+      </div>
+
+      <div class="card">
+        <div class="entity-head">
+          <span class="tag fed">Business returns</span>
+          <button type="button" class="linkish" id="add-biz">+ Add a business</button>
+        </div>
+        <div id="biz-list"></div>
+        <p class="hint">Partnerships and S corps are due March 15 and extend to
+          September 15. C corps follow the personal dates, April 15 to
+          October 15.</p>
+      </div>
+
+      <div class="card">
+        <div class="entity-head">
+          <span class="tag tex">Texas franchise tax</span>
+          <label class="toggle"><input type="checkbox" id="fra-enabled"> Remind me</label>
+        </div>
+        <fieldset id="fra-set">
+          <div class="row">
+            <div class="field">
+              <label for="fra-label">Entity</label>
+              <input type="text" id="fra-label">
+            </div>
+          </div>
+          <label class="toggle" style="margin-top:12px">
+            <input type="checkbox" id="fra-ext"> Also remind me about the
+            extended deadline (Nov 15)
+          </label>
+          <p class="hint">The extension to November only holds if the amount due
+            is paid by May 15. Below the no-tax-due threshold there is generally
+            nothing to file at all.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <!-- 3 --------------------------------------------------------------- -->
+    <section class="step">
+      <div class="step-head">
+        <span class="step-num">3</span>
+        <h2 class="step-title">When to alert me</h2>
+      </div>
+      <p class="step-note">Applies to everything above.</p>
+
+      <div class="card">
+        <label>Send a reminder this far ahead</label>
+        <div class="chips" id="leads"></div>
+        <p class="hint" id="leads-hint"></p>
+
+        <div class="row" style="margin-top:18px">
+          <div class="field">
+            <label for="email">Send to</label>
+            <input type="email" id="email">
+          </div>
+          <div class="field" style="flex:0 1 170px">
+            <label for="hour">Time of day</label>
+            <select id="hour"></select>
+          </div>
+        </div>
+        <p class="hint">Google fires the daily check at a random minute inside
+          the hour you pick.</p>
+
+        <div style="margin-top:16px">
+          <label class="toggle">
+            <input type="checkbox" id="calendar-events"> Also add all-day events
+            to my Google Calendar
+          </label>
+          <p class="hint">With popups at 9 AM three days out and 9 AM the day before.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 --------------------------------------------------------------- -->
+    <section class="step">
+      <div class="step-head">
+        <span class="step-num">4</span>
+        <h2 class="step-title">What that produces</h2>
+      </div>
+      <p class="step-note" id="tz-note"></p>
+
+      <div class="card">
+        <div class="cal-head">
+          <p class="tally" id="tally"></p>
+          <div class="range">
+            <label for="cal-range">Show next</label>
+            <select id="cal-range"></select>
+          </div>
+        </div>
+        <div class="months" id="calendar"></div>
+        <div class="legend">
+          <span><i class="key fed"></i> Federal</span>
+          <span><i class="key tex"></i> Texas</span>
+          <span><i class="key square"></i> Annual return or extension</span>
+          <span><i class="key pip"></i> Reminder email sends</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr><th>Due</th><th>Entity</th><th>What</th><th style="text-align:right">In</th></tr>
+            </thead>
+            <tbody id="schedule"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="bar">
+      <button type="button" class="act primary" id="save">Save settings</button>
+      <button type="button" class="act" id="test">Send test email</button>
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <p class="loading" id="loader">Loading settings…</p>
+</div>
+
+<script>
+  var state = null;
+  var previewTimer = null;
+
+  var DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                'August', 'September', 'October', 'November', 'December'];
+
+  function $(id) { return document.getElementById(id); }
+
+  function setStatus(msg, kind) {
+    var el = $('status');
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function fillSelect(el, options, selected) {
+    el.innerHTML = '';
+    options.forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (o.value === selected) opt.selected = true;
+      el.appendChild(opt);
+    });
+  }
+
+  function leadLabel(n) {
+    if (n === 0) return 'Day of';
+    return n + (n === 1 ? ' day' : ' days');
+  }
+
+  /** Chips cover the standard set plus anything already saved, so a value set
+      in code never disappears just because it is off-menu. */
+  function buildChips(choices, selected) {
+    var all = choices.slice();
+    selected.forEach(function (n) { if (all.indexOf(n) < 0) all.push(n); });
+    all.sort(function (a, b) { return b - a; });
+
+    var host = $('leads');
+    host.innerHTML = '';
+    all.forEach(function (n) {
+      var chip = document.createElement('label');
+      chip.className = 'chip' + (selected.indexOf(n) >= 0 ? ' on' : '');
+
+      var box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = String(n);
+      box.checked = selected.indexOf(n) >= 0;
+      box.addEventListener('change', function () {
+        chip.classList.toggle('on', box.checked);
+        schedulePreview();
+      });
+
+      var text = document.createElement('span');
+      text.textContent = leadLabel(n);
+
+      chip.appendChild(box);
+      chip.appendChild(text);
+      host.appendChild(chip);
+    });
+  }
+
+  function selectedLeads() {
+    return Array.prototype.slice
+      .call($('leads').querySelectorAll('input:checked'))
+      .map(function (b) { return Number(b.value); });
+  }
+
+  // ------------------------------------------------------------ businesses
+
+  /** Ids key the sent-records, so they are generated once and preserved. */
+  function newBusinessId() {
+    return 'biz' + Date.now().toString(36) +
+           Math.floor(Math.random() * 1000).toString(36);
+  }
+
+  function renderBusinesses(list) {
+    var host = $('biz-list');
+    host.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = 'No business returns tracked.';
+      host.appendChild(empty);
+      return;
+    }
+    list.forEach(function (b) { host.appendChild(businessEl(b)); });
+  }
+
+  function businessEl(b) {
+    var card = document.createElement('div');
+    card.className = 'subcard biz';
+    card.dataset.id = b.id;
+
+    var head = document.createElement('div');
+    head.className = 'entity-head';
+
+    var on = document.createElement('label');
+    on.className = 'toggle';
+    var onBox = document.createElement('input');
+    onBox.type = 'checkbox';
+    onBox.className = 'biz-enabled';
+    onBox.checked = b.enabled;
+    on.appendChild(onBox);
+    on.appendChild(document.createTextNode(' Remind me'));
+
+    var remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'linkish danger';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', function () {
+      card.remove();
+      if (!$('biz-list').querySelectorAll('.biz').length) renderBusinesses([]);
+      schedulePreview();
+    });
+
+    head.appendChild(on);
+    head.appendChild(remove);
+    card.appendChild(head);
+
+    var row = document.createElement('div');
+    row.className = 'row';
+
+    row.appendChild(fieldEl('Entity', function () {
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'biz-label';
+      input.value = b.label;
+      return input;
+    }));
+
+    row.appendChild(fieldEl('Entity type', function () {
+      var sel = document.createElement('select');
+      sel.className = 'biz-type';
+      fillSelect(sel, state.businessTypes, b.entityType);
+      return sel;
+    }));
+
+    card.appendChild(row);
+
+    var ext = document.createElement('label');
+    ext.className = 'toggle';
+    ext.style.marginTop = '12px';
+    var extBox = document.createElement('input');
+    extBox.type = 'checkbox';
+    extBox.className = 'biz-ext';
+    extBox.checked = b.remindExtended;
+    ext.appendChild(extBox);
+    ext.appendChild(document.createTextNode(' Also remind me about the extended deadline'));
+    card.appendChild(ext);
+
+    card.addEventListener('change', schedulePreview);
+    card.addEventListener('input', schedulePreview);
+    return card;
+  }
+
+  function fieldEl(labelText, makeControl) {
+    var wrap = document.createElement('div');
+    wrap.className = 'field';
+    var label = document.createElement('label');
+    label.textContent = labelText;
+    wrap.appendChild(label);
+    wrap.appendChild(makeControl());
+    return wrap;
+  }
+
+  function collectBusinesses() {
+    return Array.prototype.slice.call(document.querySelectorAll('.biz'))
+      .map(function (card) {
+        return {
+          id: card.dataset.id,
+          enabled: card.querySelector('.biz-enabled').checked,
+          label: card.querySelector('.biz-label').value,
+          entityType: card.querySelector('.biz-type').value,
+          remindExtended: card.querySelector('.biz-ext').checked,
+        };
+      });
+  }
+
+  // ---------------------------------------------------------------- render
+
+  function render(data) {
+    state = data;
+    var s = data.settings;
+
+    fillSelect($('fed-schedule'), data.federalSchedules, s.federal.schedule);
+    fillSelect($('tex-frequency'), data.texasFrequencies, s.texas.frequency);
+
+    var hours = [];
+    for (var h = 0; h < 24; h++) {
+      hours.push({
+        value: String(h),
+        label: h === 0 ? '12 AM' : h < 12 ? h + ' AM'
+             : h === 12 ? '12 PM' : (h - 12) + ' PM',
+      });
+    }
+    fillSelect($('hour'), hours, String(s.dailyCheckHour));
+
+    fillSelect($('cal-range'), data.calendarRanges.map(function (m) {
+      return { value: String(m), label: m === 12 ? '12 months' : m + ' months' };
+    }), String(s.calendarMonths));
+
+    $('fed-enabled').checked = s.federal.enabled;
+    $('fed-entity').value = s.federal.entity;
+    $('tex-enabled').checked = s.texas.enabled;
+    $('tex-entity').value = s.texas.entity;
+
+    $('per-enabled').checked = s.returns.personal.enabled;
+    $('per-label').value = s.returns.personal.label;
+    $('per-ext').checked = s.returns.personal.remindExtended;
+    $('fra-enabled').checked = s.returns.franchise.enabled;
+    $('fra-label').value = s.returns.franchise.label;
+    $('fra-ext').checked = s.returns.franchise.remindExtended;
+    renderBusinesses(s.returns.businesses);
+
+    $('email').value = s.notifyEmail;
+    $('email').placeholder = data.defaultEmail;
+    $('calendar-events').checked = s.addCalendarEvents;
+    buildChips(data.leadChoices, s.leadDays);
+
+    $('tz-note').textContent =
+      'Dates roll forward past weekends and federal holidays. Script timezone: ' +
+      data.timezone + '.';
+    $('trigger-warning').style.display = data.triggerInstalled ? 'none' : 'block';
+    $('sub').textContent = 'Reminders run daily from your Google account.';
+
+    syncDisabled();
+    renderPreview(data.preview);
+
+    $('loader').style.display = 'none';
+    $('app').style.display = 'block';
+  }
+
+  function renderPreview(p) {
+    renderTally(p);
+    renderCalendar(p);
+    renderSchedule(p.schedule);
+  }
+
+  function renderTally(p) {
+    var deadlines = 0, alerts = 0;
+    p.calendar.forEach(function (m) {
+      if (m.kind === 'deadline') deadlines++; else alerts++;
+    });
+    $('tally').innerHTML = deadlines
+      ? '<b>' + deadlines + '</b> deadline' + (deadlines === 1 ? '' : 's') +
+        ' and <b>' + alerts + '</b> reminder email' + (alerts === 1 ? '' : 's') +
+        ' over the next ' + p.monthCount + ' months.'
+      : 'Nothing scheduled — everything is switched off.';
+  }
+
+  function renderCalendar(p) {
+    var marks = {};
+    p.calendar.forEach(function (m) {
+      (marks[m.date] = marks[m.date] || []).push(m);
+    });
+
+    var host = $('calendar');
+    host.innerHTML = '';
+    for (var i = 0; i < p.monthCount; i++) {
+      var raw = p.startMonth + i;
+      host.appendChild(
+        buildMonth(p.startYear + Math.floor(raw / 12), raw % 12, marks, p.today));
+    }
+  }
+
+  function buildMonth(year, month, marks, today) {
+    var el = document.createElement('div');
+    el.className = 'month';
+
+    var name = document.createElement('div');
+    name.className = 'month-name';
+    name.textContent = MONTHS[month] + ' ' + year;
+    el.appendChild(name);
+
+    var dow = document.createElement('div');
+    dow.className = 'dow';
+    DOW.forEach(function (d) {
+      var s = document.createElement('span');
+      s.textContent = d;
+      dow.appendChild(s);
+    });
+    el.appendChild(dow);
+
+    var grid = document.createElement('div');
+    grid.className = 'grid';
+
+    // Built from explicit year/month/day numbers so the grid never drifts
+    // against the server's timezone.
+    var lead = new Date(year, month, 1).getDay();
+    var days = new Date(year, month + 1, 0).getDate();
+    for (var b = 0; b < lead; b++) grid.appendChild(cellEl(''));
+
+    for (var d = 1; d <= days; d++) {
+      var key = year + '-' + pad(month + 1) + '-' + pad(d);
+      grid.appendChild(cellEl(d, marks[key], key === today));
+    }
+
+    el.appendChild(grid);
+    return el;
+  }
+
+  function cellEl(day, dayMarks, isToday) {
+    var cell = document.createElement('div');
+    cell.className = 'cell';
+    if (day === '') return cell;
+
+    var num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = day;
+    cell.appendChild(num);
+
+    if (isToday) cell.classList.add('today');
+    if (!dayMarks || !dayMarks.length) return cell;
+
+    cell.classList.add('has-mark');
+    cell.title = dayMarks.map(function (m) { return m.label; }).join('\n');
+
+    var deadline = dayMarks.filter(function (m) { return m.kind === 'deadline'; })[0];
+    if (deadline) {
+      cell.classList.add('deadline', deadline.federal ? 'fed' : 'tex');
+      if (deadline.annual) cell.classList.add('annual');
+    }
+
+    // Alert pips sit under the number. A day that is itself a deadline is
+    // already unmistakable, so it is not pipped as well.
+    var alerts = dayMarks.filter(function (m) { return m.kind === 'alert'; });
+    if (alerts.length && !deadline) {
+      var pips = document.createElement('div');
+      pips.className = 'pips';
+      alerts.slice(0, 3).forEach(function (a) {
+        var pip = document.createElement('i');
+        pip.className = 'pip ' + (a.federal ? 'fed' : 'tex');
+        pips.appendChild(pip);
+      });
+      cell.appendChild(pips);
+    }
+    return cell;
+  }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function renderSchedule(rows) {
+    var body = $('schedule');
+    body.innerHTML = '';
+
+    if (!rows.length) {
+      var tr = body.insertRow();
+      var cell = tr.insertCell();
+      cell.colSpan = 4;
+      cell.className = 'period';
+      cell.textContent = 'Nothing scheduled — everything is switched off.';
+      return;
+    }
+
+    rows.forEach(function (r) {
+      var kind = (r.federal ? 'fed' : 'tex') + (r.annual ? ' annual' : '');
+      var row = body.insertRow();
+
+      var due = row.insertCell();
+      due.className = 'due';
+      due.innerHTML = '<span class="dot ' + kind + '"></span>' + esc(r.dueText) +
+        (r.shifted ? '<br><span class="moved">moved from ' +
+                     esc(r.statutoryText) + '</span>' : '');
+
+      row.insertCell().textContent = r.entity;
+
+      var what = row.insertCell();
+      what.innerHTML = esc(r.title) +
+        '<br><span class="period">' + esc(r.period) + '</span>';
+
+      var days = row.insertCell();
+      days.className = 'days';
+      days.textContent = r.daysOut === 0 ? 'today'
+        : r.daysOut === 1 ? '1 day' : r.daysOut + ' days';
+    });
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function collect() {
+    return {
+      notifyEmail: $('email').value,
+      leadDays: selectedLeads(),
+      addCalendarEvents: $('calendar-events').checked,
+      dailyCheckHour: Number($('hour').value),
+      calendarMonths: Number($('cal-range').value),
+      federal: {
+        enabled: $('fed-enabled').checked,
+        entity: $('fed-entity').value,
+        schedule: $('fed-schedule').value,
+      },
+      texas: {
+        enabled: $('tex-enabled').checked,
+        entity: $('tex-entity').value,
+        frequency: $('tex-frequency').value,
+      },
+      returns: {
+        personal: {
+          enabled: $('per-enabled').checked,
+          label: $('per-label').value,
+          remindExtended: $('per-ext').checked,
+        },
+        businesses: collectBusinesses(),
+        franchise: {
+          enabled: $('fra-enabled').checked,
+          label: $('fra-label').value,
+          remindExtended: $('fra-ext').checked,
+        },
+      },
+    };
+  }
+
+  function syncDisabled() {
+    $('fed-set').disabled = !$('fed-enabled').checked;
+    $('tex-set').disabled = !$('tex-enabled').checked;
+    $('per-set').disabled = !$('per-enabled').checked;
+    $('fra-set').disabled = !$('fra-enabled').checked;
+    $('leads-hint').textContent = selectedLeads().length ? '' : 'Pick at least one.';
+  }
+
+  /** Repreviews server-side, so the calendar always reflects the real date
+      math rather than a client-side approximation of it. */
+  function schedulePreview() {
+    syncDisabled();
+    if (!selectedLeads().length) return;
+
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(function () {
+      google.script.run
+        .withSuccessHandler(renderPreview)
+        .withFailureHandler(function () { /* keep the last good preview */ })
+        .previewSettings(collect());
+    }, 250);
+  }
+
+  function save() {
+    if (!selectedLeads().length) {
+      setStatus('Pick at least one reminder time.', 'err');
+      return;
+    }
+    $('save').disabled = true;
+    setStatus('Saving…');
+    google.script.run
+      .withSuccessHandler(function (res) {
+        $('save').disabled = false;
+        buildChips(state.leadChoices, res.settings.leadDays);
+        renderBusinesses(res.settings.returns.businesses);
+        renderPreview(res.preview);
+        $('trigger-warning').style.display = 'none';
+        setStatus('Saved. Daily check installed.', 'ok');
+      })
+      .withFailureHandler(function (err) {
+        $('save').disabled = false;
+        setStatus(err.message || 'Save failed.', 'err');
+      })
+      .saveSettings(collect());
+  }
+
+  function test() {
+    $('test').disabled = true;
+    setStatus('Sending…');
+    google.script.run
+      .withSuccessHandler(function (msg) {
+        $('test').disabled = false;
+        setStatus(msg, 'ok');
+      })
+      .withFailureHandler(function (err) {
+        $('test').disabled = false;
+        setStatus(err.message || 'Could not send.', 'err');
+      })
+      .sendTestEmail();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    ['fed-enabled', 'fed-entity', 'fed-schedule',
+     'tex-enabled', 'tex-entity', 'tex-frequency',
+     'per-enabled', 'per-label', 'per-ext',
+     'fra-enabled', 'fra-label', 'fra-ext',
+     'cal-range'].forEach(function (id) {
+      $(id).addEventListener('change', schedulePreview);
+      $(id).addEventListener('input', schedulePreview);
+    });
+
+    $('add-biz').addEventListener('click', function () {
+      var list = collectBusinesses();
+      list.push({
+        id: newBusinessId(), enabled: true, label: '',
+        entityType: 'partnership', remindExtended: true,
+      });
+      renderBusinesses(list);
+      schedulePreview();
+    });
+
+    $('save').addEventListener('click', save);
+    $('test').addEventListener('click', test);
+
+    google.script.run
+      .withSuccessHandler(render)
+      .withFailureHandler(function (err) {
+        $('loader').textContent = 'Could not load: ' + (err.message || err);
+      })
+      .loadDashboard();
+  });
+</script>
