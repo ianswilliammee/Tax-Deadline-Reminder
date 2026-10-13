@@ -19,7 +19,13 @@
  */
 
 const DEFAULTS = {
-  notifyEmail: '',            // blank means "the account running the script"
+  // Every address here gets every reminder. Empty means "the account running
+  // the script"; that account is always included, so anything listed here is
+  // in addition to it.
+  notifyEmails: [],
+  // Hard cap on recipients, mostly to keep one typo from eating the daily
+  // MailApp quota (each recipient counts toward it separately).
+  maxRecipients: 10,
   leadDays: [21, 7, 3, 0],
   addCalendarEvents: true,
   dailyCheckHour: 7,
@@ -239,7 +245,7 @@ function sendTestEmail() {
   if (!next) throw new Error('Nothing scheduled — everything is switched off.');
 
   sendReminder(next, daysBetween(startOfDay(new Date()), next.due), settings, true);
-  return 'Test sent to ' + recipient(settings);
+  return 'Test sent to ' + recipients(settings).join(', ');
 }
 
 // --------------------------------------------------------------- entry points
@@ -356,7 +362,7 @@ function sendReminder(dl, daysOut, settings, isTest) {
     : 'in ' + daysOut + ' days';
 
   MailApp.sendEmail({
-    to: recipient(settings),
+    to: recipients(settings).join(','),
     subject: (isTest ? '[test] ' : '') +
              '[' + dl.entity + '] ' + dl.title + ' ' + when +
              ' — ' + Utilities.formatDate(dl.due, tz(), 'EEE MMM d'),
@@ -377,8 +383,16 @@ function describe(dl) {
   ].join('\n');
 }
 
-function recipient(settings) {
-  return settings.notifyEmail || Session.getEffectiveUser().getEmail();
+/**
+ * The account running the script always hears about deadlines; the configured
+ * addresses are added to it rather than replacing it.
+ */
+function recipients(settings) {
+  const me = Session.getEffectiveUser().getEmail();
+  const extra = settings.notifyEmails.filter(function (e) {
+    return e.toLowerCase() !== me.toLowerCase();
+  });
+  return [me].concat(extra);
 }
 
 // -------------------------------------------------------------------- settings
@@ -403,7 +417,10 @@ function normalize(raw) {
   if (!leads.length) leads = DEFAULTS.leadDays.slice();
 
   return {
-    notifyEmail: (s.notifyEmail || '').trim(),
+    // Settings saved before this was a list stored a single `notifyEmail`
+    // string; normalizeEmails accepts either shape.
+    notifyEmails: normalizeEmails(
+      s.notifyEmails !== undefined ? s.notifyEmails : s.notifyEmail),
     leadDays: leads,
     addCalendarEvents: s.addCalendarEvents !== false,
     dailyCheckHour: clamp(Number(s.dailyCheckHour) || DEFAULTS.dailyCheckHour, 0, 23),
@@ -439,6 +456,27 @@ function normalizeReturn(raw, fallback) {
     remindExtended: typeof r.remindExtended === 'boolean'
       ? r.remindExtended : fallback.remindExtended,
   };
+}
+
+/**
+ * Accepts an array or a string of addresses separated by commas, semicolons,
+ * whitespace or newlines. Drops blanks, anything that is not shaped like an
+ * address, and case-insensitive duplicates. Order is preserved.
+ */
+function normalizeEmails(raw) {
+  var list = Array.isArray(raw) ? raw : String(raw || '').split(/[\s,;]+/);
+  const seen = {};
+
+  return list
+    .map(function (e) { return String(e || '').trim(); })
+    .filter(function (e) {
+      if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return false;
+      const k = e.toLowerCase();
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    })
+    .slice(0, DEFAULTS.maxRecipients);
 }
 
 function normalizeBusinesses(raw) {

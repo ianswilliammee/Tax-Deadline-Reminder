@@ -355,14 +355,16 @@
 
         <div class="row" style="margin-top:18px">
           <div class="field">
-            <label for="email">Send to</label>
-            <input type="email" id="email">
+            <label for="emails">Also send to</label>
+            <input type="text" id="emails" autocomplete="off" spellcheck="false"
+                   placeholder="partner@example.com, accountant@example.com">
           </div>
           <div class="field" style="flex:0 1 170px">
             <label for="hour">Time of day</label>
             <select id="hour"></select>
           </div>
         </div>
+        <p class="hint" id="emails-hint"></p>
         <p class="hint">Google fires the daily check at a random minute inside
           the hour you pick.</p>
 
@@ -639,8 +641,10 @@
     $('fra-ext').checked = s.returns.franchise.remindExtended;
     renderBusinesses(s.returns.businesses);
 
-    $('email').value = s.notifyEmail;
-    $('email').placeholder = data.defaultEmail;
+    $('emails').value = s.notifyEmails.join(', ');
+    $('emails-hint').textContent =
+      'Every reminder goes to ' + data.defaultEmail + '. Add more addresses ' +
+      'here, separated by commas.';
     $('calendar-events').checked = s.addCalendarEvents;
     buildChips(data.leadChoices, s.leadDays);
 
@@ -810,7 +814,7 @@
 
   function collect() {
     return {
-      notifyEmail: $('email').value,
+      notifyEmails: $('emails').value,
       leadDays: selectedLeads(),
       addCalendarEvents: $('calendar-events').checked,
       dailyCheckHour: Number($('hour').value),
@@ -876,9 +880,15 @@
         $('save').disabled = false;
         buildChips(state.leadChoices, res.settings.leadDays);
         renderBusinesses(res.settings.returns.businesses);
+        // Echo the server's cleaned-up list so a dropped or deduplicated
+        // address is visible rather than silently lost.
+        $('emails').value = res.settings.notifyEmails.join(', ');
         renderPreview(res.preview);
         $('trigger-warning').style.display = 'none';
-        setStatus('Saved. Daily check installed.', 'ok');
+        setStatus('Saved. Daily check installed.' +
+                  (res.settings.notifyEmails.length
+                    ? ' Reminders also go to ' + res.settings.notifyEmails.join(', ') + '.'
+                    : ''), 'ok');
       })
       .withFailureHandler(function (err) {
         $('save').disabled = false;

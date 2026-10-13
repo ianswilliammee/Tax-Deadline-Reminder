@@ -19,8 +19,8 @@ year without editing the tables.
 
 - `Code.gs` — all server-side logic: deadline engine, reminder emails,
   calendar sync, settings storage and the dashboard's data endpoints.
-- `Dashboard.html` — the web dashboard (not yet in this repository; see
-  setup step 2).
+- `Dashboard.html` — the web dashboard, pasted into the Apps Script project
+  as an HTML file named `Dashboard`.
 
 ## Setup
 
@@ -36,6 +36,18 @@ year without editing the tables.
    dashboard.
 
 Settings live in Script Properties, so redeploying will not clobber them.
+
+## Recipients
+
+Every reminder goes to the Google account that runs the script. To send
+copies to other people, enter their addresses in the dashboard's **Also send
+to** field, separated by commas, and save. Up to ten extra addresses are
+kept; blanks, duplicates and anything not shaped like an email address are
+dropped, and the field shows the cleaned-up list after saving. The **Send
+test email** button goes to the full list so you can confirm delivery.
+
+Each recipient counts separately toward the daily MailApp sending quota, so
+a long list on a day with several deadlines can run into Google's limit.
 
 ## How it runs
 
