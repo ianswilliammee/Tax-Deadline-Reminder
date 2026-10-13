@@ -124,6 +124,19 @@
   .chip.on { background: var(--accent-soft); border-color: var(--accent);
              color: var(--accent); font-weight: 600; }
 
+  /* Recipients: one address per chip, with its own remove button. */
+  .addrow { display: flex; gap: 8px; }
+  .addrow input { flex: 1 1 auto; }
+  .addrow button { flex: none; }
+  .recipients { margin-top: 10px; }
+  .recipients:empty { display: none; }
+  .chip.email { cursor: default; padding-right: 6px; }
+  .chip.email .x {
+    background: none; border: 0; padding: 0 4px; cursor: pointer;
+    color: var(--muted); font-size: 15px; line-height: 1;
+  }
+  .chip.email .x:hover { color: var(--err); }
+
   /* Calendar */
   .months {
     display: grid; gap: 16px;
@@ -355,16 +368,23 @@
 
         <div class="row" style="margin-top:18px">
           <div class="field">
-            <label for="emails">Also send to</label>
-            <input type="text" id="emails" autocomplete="off" spellcheck="false"
-                   placeholder="partner@example.com, accountant@example.com">
+            <label for="email-new">Also send reminders to</label>
+            <div class="addrow">
+              <input type="email" id="email-new" autocomplete="off"
+                     spellcheck="false" placeholder="name@example.com">
+              <button type="button" class="act" id="email-add">Add</button>
+            </div>
+            <div class="chips recipients" id="emails"></div>
+            <p class="hint" id="emails-hint"></p>
           </div>
+        </div>
+
+        <div class="row" style="margin-top:18px">
           <div class="field" style="flex:0 1 170px">
             <label for="hour">Time of day</label>
             <select id="hour"></select>
           </div>
         </div>
-        <p class="hint" id="emails-hint"></p>
         <p class="hint">Google fires the daily check at a random minute inside
           the hour you pick.</p>
 
@@ -486,6 +506,68 @@
       chip.appendChild(text);
       host.appendChild(chip);
     });
+  }
+
+  // ------------------------------------------------------------ recipients
+
+  var recipientList = [];
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function renderRecipients() {
+    var host = $('emails');
+    host.innerHTML = '';
+    recipientList.forEach(function (addr) {
+      var chip = document.createElement('span');
+      chip.className = 'chip email';
+
+      var text = document.createElement('span');
+      text.textContent = addr;
+      chip.appendChild(text);
+
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'x';
+      x.title = 'Remove ' + addr;
+      x.setAttribute('aria-label', 'Remove ' + addr);
+      x.textContent = '×';
+      x.addEventListener('click', function () {
+        recipientList = recipientList.filter(function (a) { return a !== addr; });
+        renderRecipients();
+      });
+      chip.appendChild(x);
+
+      host.appendChild(chip);
+    });
+  }
+
+  /** Adds whatever is in the box. Pasting a comma- or space-separated list
+      adds every address in it. Returns a message for the hint line. */
+  function addRecipientsFromBox() {
+    var box = $('email-new');
+    var parts = box.value.split(/[\s,;]+/).filter(Boolean);
+    if (!parts.length) return;
+
+    var bad = [], added = 0;
+    parts.forEach(function (raw) {
+      var addr = raw.trim();
+      if (!EMAIL_RE.test(addr)) { bad.push(addr); return; }
+      var dupe = recipientList.some(function (a) {
+        return a.toLowerCase() === addr.toLowerCase();
+      });
+      if (!dupe) { recipientList.push(addr); added++; }
+    });
+
+    renderRecipients();
+    box.value = bad.join(', ');
+    $('emails-hint').textContent = bad.length
+      ? 'Not an email address: ' + bad.join(', ')
+      : baseEmailsHint();
+    if (added) setStatus('Added. Save settings to keep the change.');
+  }
+
+  function baseEmailsHint() {
+    return 'Every reminder goes to ' + state.defaultEmail +
+           '. Add other addresses above and press Enter or Add.';
   }
 
   function selectedLeads() {
@@ -641,10 +723,9 @@
     $('fra-ext').checked = s.returns.franchise.remindExtended;
     renderBusinesses(s.returns.businesses);
 
-    $('emails').value = s.notifyEmails.join(', ');
-    $('emails-hint').textContent =
-      'Every reminder goes to ' + data.defaultEmail + '. Add more addresses ' +
-      'here, separated by commas.';
+    recipientList = s.notifyEmails.slice();
+    renderRecipients();
+    $('emails-hint').textContent = baseEmailsHint();
     $('calendar-events').checked = s.addCalendarEvents;
     buildChips(data.leadChoices, s.leadDays);
 
@@ -814,7 +895,7 @@
 
   function collect() {
     return {
-      notifyEmails: $('emails').value,
+      notifyEmails: recipientList.slice(),
       leadDays: selectedLeads(),
       addCalendarEvents: $('calendar-events').checked,
       dailyCheckHour: Number($('hour').value),
@@ -873,6 +954,12 @@
       setStatus('Pick at least one reminder time.', 'err');
       return;
     }
+    // An address typed but not yet added should not be lost on save.
+    addRecipientsFromBox();
+    if ($('email-new').value) {
+      setStatus('Fix or clear the address that could not be added.', 'err');
+      return;
+    }
     $('save').disabled = true;
     setStatus('Saving…');
     google.script.run
@@ -882,7 +969,8 @@
         renderBusinesses(res.settings.returns.businesses);
         // Echo the server's cleaned-up list so a dropped or deduplicated
         // address is visible rather than silently lost.
-        $('emails').value = res.settings.notifyEmails.join(', ');
+        recipientList = res.settings.notifyEmails.slice();
+        renderRecipients();
         renderPreview(res.preview);
         $('trigger-warning').style.display = 'none';
         setStatus('Saved. Daily check installed.' +
@@ -930,6 +1018,17 @@
       });
       renderBusinesses(list);
       schedulePreview();
+    });
+
+    $('email-add').addEventListener('click', addRecipientsFromBox);
+    $('email-new').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addRecipientsFromBox();
+      }
+    });
+    $('email-new').addEventListener('input', function () {
+      $('emails-hint').textContent = baseEmailsHint();
     });
 
     $('save').addEventListener('click', save);
